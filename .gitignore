@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs
+*.log
+logs/
+server.log
+
+# Environment variables
+.env
+.venv
+venv/
+ENV/
+
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# OpenShift / Kubernetes
+.kube/
+kubeconfig
+*.kubeconfig
+
+# User workspace specific
+workspace/namespace/*/
+!workspace/namespace/.gitkeep
+
+# Other common files to ignore
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*~
+.idea/
+*.sublime-*
+node_modules/
+.npm/
+.yarn/

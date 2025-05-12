@@ -36,13 +36,36 @@ done
 # Set up environment
 echo -e "\n${YELLOW}Setting up environment...${NC}"
 
+# Setup virtual environment and install dependencies
+echo -e "Setting up Python virtual environment..."
+if [ ! -d ".venv" ]; then
+    # Create virtual environment
+    python3 -m venv .venv
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗${NC} Failed to create virtual environment"
+        echo -e "Make sure python3-venv is installed: sudo apt install python3-venv"
+        exit 1
+    fi
+    echo -e "${GREEN}✓${NC} Virtual environment created"
+else
+    echo -e "${YELLOW}⚠${NC} Virtual environment already exists"
+fi
+
+# Activate virtual environment
+source .venv/bin/activate
+if [ $? -ne 0 ]; then
+    echo -e "${RED}✗${NC} Failed to activate virtual environment"
+    exit 1
+fi
+
 # Install Python dependencies
 echo -e "Installing Python dependencies..."
-pip3 install --user -r backend/requirements.txt
+pip install -r backend/requirements.txt
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓${NC} Python dependencies installed successfully"
 else
     echo -e "${RED}✗${NC} Failed to install Python dependencies"
+    deactivate
     exit 1
 fi
 
@@ -59,9 +82,9 @@ if pgrep -f "python3 backend/app.py" > /dev/null; then
     sleep 2
 fi
 
-# Start Flask server
+# Start Flask server (using the virtual environment's Python)
 echo -e "Starting Flask server on port 80 (requires sudo)..."
-sudo nohup python3 backend/app.py > backend/server.log 2>&1 &
+sudo nohup .venv/bin/python backend/app.py > backend/server.log 2>&1 &
 SERVER_PID=$!
 
 # Check if server started successfully
@@ -74,6 +97,9 @@ else
     echo -e "Check logs for details: $(pwd)/backend/server.log"
     exit 1
 fi
+
+# Deactivate the virtual environment
+deactivate
 
 # Print access information
 echo -e "\n${GREEN}=================================${NC}"
