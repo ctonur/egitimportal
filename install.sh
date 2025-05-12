@@ -17,10 +17,26 @@ echo -e "\n${YELLOW}Checking prerequisites...${NC}"
 # Check Python version
 if command -v python3 &>/dev/null; then
     PYTHON_VERSION=$(python3 --version | awk '{print $2}')
+    PYTHON_MAJOR_MINOR=$(python3 --version | awk '{print $2}' | cut -d'.' -f1-2)
     echo -e "${GREEN}✓${NC} Python $PYTHON_VERSION found"
 else
     echo -e "${RED}✗${NC} Python 3 not found. Please install Python 3.7 or higher."
     exit 1
+fi
+
+# Check and install virtual environment package
+echo -e "Checking for Python virtual environment package..."
+if ! python3 -m venv --help &> /dev/null; then
+    echo -e "${YELLOW}⚠${NC} Python virtual environment package not found. Installing it..."
+    sudo apt update && sudo apt install -y python3-venv
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗${NC} Failed to install Python virtual environment package"
+        echo -e "Please install it manually: sudo apt install python3-venv"
+        exit 1
+    fi
+    echo -e "${GREEN}✓${NC} Python virtual environment package installed successfully"
+else
+    echo -e "${GREEN}✓${NC} Python virtual environment package already installed"
 fi
 
 # Check CLI tools
@@ -36,30 +52,41 @@ done
 # Set up environment
 echo -e "\n${YELLOW}Setting up environment...${NC}"
 
-# Setup virtual environment and install dependencies
-echo -e "Setting up Python virtual environment..."
-if [ ! -d ".venv" ]; then
-    # Create virtual environment
-    python3 -m venv .venv
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}✗${NC} Failed to create virtual environment"
-        echo -e "Make sure python3-venv is installed: sudo apt install python3-venv"
-        exit 1
-    fi
-    echo -e "${GREEN}✓${NC} Virtual environment created"
-else
-    echo -e "${YELLOW}⚠${NC} Virtual environment already exists"
+# Remove existing virtual environment if it exists
+if [ -d ".venv" ]; then
+    echo -e "${YELLOW}⚠${NC} Removing existing virtual environment..."
+    rm -rf .venv
+    echo -e "${GREEN}✓${NC} Removed existing virtual environment"
+fi
+
+# Create virtual environment
+echo -e "Creating new Python virtual environment..."
+python3 -m venv .venv
+if [ $? -ne 0 ]; then
+    echo -e "${RED}✗${NC} Failed to create virtual environment"
+    echo -e "Please install the correct Python venv package: sudo apt install python3-venv"
+    exit 1
+fi
+echo -e "${GREEN}✓${NC} Virtual environment created successfully"
+
+# Verify the virtual environment was created properly
+if [ ! -f ".venv/bin/activate" ]; then
+    echo -e "${RED}✗${NC} Virtual environment seems corrupted (missing activate script)"
+    exit 1
 fi
 
 # Activate virtual environment
+echo -e "Activating virtual environment..."
 source .venv/bin/activate
 if [ $? -ne 0 ]; then
     echo -e "${RED}✗${NC} Failed to activate virtual environment"
     exit 1
 fi
+echo -e "${GREEN}✓${NC} Virtual environment activated"
 
 # Install Python dependencies
 echo -e "Installing Python dependencies..."
+python -m pip install --upgrade pip
 pip install -r backend/requirements.txt
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓${NC} Python dependencies installed successfully"
