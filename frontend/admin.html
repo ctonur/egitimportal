@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenShift Lab Platform Admin</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .admin-panel {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-right: 1px solid #ddd;
+        }
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        .question-list {
+            margin-top: 20px;
+        }
+        .question-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .question-item:hover {
+            background-color: #f0f0f0;
+        }
+        .question-item.active {
+            background-color: #e0e0e0;
+            border-left: 4px solid #4CAF50;
+        }
+        .editor-section {
+            margin-bottom: 20px;
+        }
+        .steps-container {
+            margin-top: 20px;
+        }
+        .step-item {
+            border: 1px solid #ddd;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .validation-section {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-danger {
+            background-color: #f44336;
+        }
+        .btn-secondary {
+            background-color: #607d8b;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        textarea {
+            min-height: 150px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>OpenShift Lab Platform Admin</h1>
+        <nav>
+            <a href="/">Back to Labs</a>
+        </nav>
+    </header>
+
+    <div class="admin-panel">
+        <div class="sidebar">
+            <button id="createQuestionBtn" class="btn">Create New Question</button>
+            <div class="question-list" id="questionList">
+                <!-- Questions will be loaded here -->
+                <div class="loading">Loading questions...</div>
+            </div>
+        </div>
+
+        <div class="main-content" id="questionEditor">
+            <div id="noQuestionSelected">
+                <h2>Question Editor</h2>
+                <p>Select a question from the sidebar or create a new one.</p>
+            </div>
+
+            <div id="questionForm" style="display:none;">
+                <div class="editor-section">
+                    <label for="questionTitle">Question Title:</label>
+                    <input type="text" id="questionTitle" placeholder="Enter question title">
+                    
+                    <label for="questionDescription">Description:</label>
+                    <textarea id="questionDescription" placeholder="Enter question description"></textarea>
+                </div>
+
+                <div class="steps-container" id="stepsContainer">
+                    <!-- Steps will be added here -->
+                </div>
+
+                <button id="addStepBtn" class="btn">Add Step</button>
+                <div style="margin-top: 20px;">
+                    <button id="saveQuestionBtn" class="btn">Save Question</button>
+                    <button id="deleteQuestionBtn" class="btn btn-danger">Delete Question</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="stepTemplate">
+        <div class="step-item">
+            <div class="step-header">
+                <h3>Step <span class="step-number"></span></h3>
+                <div>
+                    <button class="btn btn-secondary move-step-up">Move Up</button>
+                    <button class="btn btn-secondary move-step-down">Move Down</button>
+                    <button class="btn btn-danger remove-step">Remove</button>
+                </div>
+            </div>
+            <textarea class="step-content" placeholder="Enter step content in Markdown format"></textarea>
+            <div class="validation-section">
+                <label>Validation Command:</label>
+                <input type="text" class="validation-command" placeholder="oc command to validate this step">
+                <small>This command should return status code 0 for success</small>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // State
+            let currentQuestionId = null;
+            let questions = [];
+
+            // Elements
+            const questionList = document.getElementById('questionList');
+            const questionForm = document.getElementById('questionForm');
+            const noQuestionSelected = document.getElementById('noQuestionSelected');
+            const questionTitle = document.getElementById('questionTitle');
+            const questionDescription = document.getElementById('questionDescription');
+            const stepsContainer = document.getElementById('stepsContainer');
+            const stepTemplate = document.getElementById('stepTemplate');
+            const createQuestionBtn = document.getElementById('createQuestionBtn');
+            const saveQuestionBtn = document.getElementById('saveQuestionBtn');
+            const deleteQuestionBtn = document.getElementById('deleteQuestionBtn');
+            const addStepBtn = document.getElementById('addStepBtn');
+
+            // Load all questions
+            function loadQuestions() {
+                fetch('/api/admin/questions')
+                    .then(response => response.json())
+                    .then(data => {
+                        questions = data;
+                        renderQuestionList();
+                    })
+                    .catch(error => {
+                        console.error('Error loading questions:', error);
+                        questionList.innerHTML = '<div class="error">Error loading questions</div>';
+                    });
+            }
+
+            // Render question list in sidebar
+            function renderQuestionList() {
+                questionList.innerHTML = '';
+                
+                if (questions.length === 0) {
+                    questionList.innerHTML = '<div class="info">No questions available</div>';
+                    return;
+                }
+                
+                questions.forEach(question => {
+                    const item = document.createElement('div');
+                    item.className = `question-item ${question.id === currentQuestionId ? 'active' : ''}`;
+                    item.textContent = question.title || question.id;
+                    item.dataset.id = question.id;
+                    item.addEventListener('click', () => loadQuestion(question.id));
+                    questionList.appendChild(item);
+                });
+            }
+
+            // Load question details
+            function loadQuestion(questionId) {
+                currentQuestionId = questionId;
+                renderQuestionList(); // Update active state
+                
+                fetch(`/api/admin/questions/${questionId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Question not found');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        displayQuestion(data);
+                    })
+                    .catch(error => {
+                        console.error('Error loading question details:', error);
+                        alert('Error loading question details');
+                    });
+
+                // Also load validation data
+                fetch(`/api/questions/${questionId}`)
+                    .then(response => response.json())
+                    .then(questionData => {
+                        // Load validation info from questionData if available
+                        loadValidationCommands(questionId);
+                    })
+                    .catch(error => console.error('Error loading question data:', error));
+
+                // Show form, hide placeholder
+                questionForm.style.display = 'block';
+                noQuestionSelected.style.display = 'none';
+            }
+
+            // Load validation commands for a question
+            function loadValidationCommands(questionId) {
+                fetch(`/api/questions/${questionId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to load validation data');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Load validation data separately
+                        return fetch(`/questions/${questionId}/validation.json`)
+                            .catch(() => ({})); // Ignore errors if validation.json doesn't exist
+                    })
+                    .then(response => response.json())
+                    .then(validations => {
+                        // Apply validation commands to steps
+                        document.querySelectorAll('.step-item').forEach(stepItem => {
+                            const stepNum = stepItem.querySelector('.step-number').textContent;
+                            const validationInput = stepItem.querySelector('.validation-command');
+                            if (validationInput && validations[stepNum]) {
+                                validationInput.value = validations[stepNum];
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading validation commands:', error);
+                    });
+            }
+
+            // Display question in editor
+            function displayQuestion(question) {
+                questionTitle.value = question.title || '';
+                questionDescription.value = question.description || '';
+                
+                // Clear steps
+                stepsContainer.innerHTML = '';
+                
+                // Add each step
+                if (question.steps && question.steps.length) {
+                    question.steps.forEach(step => {
+                        const content = step.content.replace(/<[^>]*>/g, ''); // Strip HTML
+                        addStep(step.id, content);
+                    });
+                } else {
+                    // Add default first step
+                    addStep(1, '# Step 1\n\nCreate your namespace:\n\n```bash\noc create namespace my-namespace\n```');
+                }
+
+                // Load validation commands
+                loadValidationCommands(question.id);
+            }
+
+            // Add a step to the form
+            function addStep(number, content = '') {
+                const stepItem = document.importNode(stepTemplate.content, true).firstElementChild;
+                stepItem.querySelector('.step-number').textContent = number || getNextStepNumber();
+                stepItem.querySelector('.step-content').value = content;
+                
+                // Setup event handlers
+                stepItem.querySelector('.remove-step').addEventListener('click', function() {
+                    if (document.querySelectorAll('.step-item').length > 1) {
+                        stepItem.remove();
+                        renumberSteps();
+                    } else {
+                        alert('You cannot remove the last step');
+                    }
+                });
+                
+                stepItem.querySelector('.move-step-up').addEventListener('click', function() {
+                    const prev = stepItem.previousElementSibling;
+                    if (prev) {
+                        stepsContainer.insertBefore(stepItem, prev);
+                        renumberSteps();
+                    }
+                });
+                
+                stepItem.querySelector('.move-step-down').addEventListener('click', function() {
+                    const next = stepItem.nextElementSibling;
+                    if (next) {
+                        stepsContainer.insertBefore(next, stepItem);
+                        renumberSteps();
+                    }
+                });
+                
+                stepsContainer.appendChild(stepItem);
+            }
+
+            // Get the next step number
+            function getNextStepNumber() {
+                const steps = document.querySelectorAll('.step-item');
+                return steps.length + 1;
+            }
+
+            // Renumber steps after changes
+            function renumberSteps() {
+                const steps = document.querySelectorAll('.step-item');
+                steps.forEach((step, index) => {
+                    step.querySelector('.step-number').textContent = index + 1;
+                });
+            }
+
+            // Create a new question
+            function createQuestion() {
+                const id = prompt('Enter a unique ID for the question (letters, numbers, hyphens only):');
+                if (!id) return;
+                
+                if (!/^[a-zA-Z0-9-]+$/.test(id)) {
+                    alert('ID must contain only letters, numbers and hyphens');
+                    return;
+                }
+                
+                fetch('/api/admin/questions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: id,
+                        title: 'New Question',
+                        description: 'Question description goes here'
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to create question');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loadQuestions(); // Refresh list
+                    loadQuestion(id); // Open the new question
+                })
+                .catch(error => {
+                    console.error('Error creating question:', error);
+                    alert('Error creating question: ' + error.message);
+                });
+            }
+
+            // Save the current question
+            function saveQuestion() {
+                if (!currentQuestionId) return;
+                
+                const steps = [];
+                const validations = {};
+                
+                // Collect step data
+                document.querySelectorAll('.step-item').forEach(stepItem => {
+                    const stepNum = stepItem.querySelector('.step-number').textContent;
+                    const content = stepItem.querySelector('.step-content').value;
+                    const validationCommand = stepItem.querySelector('.validation-command').value;
+                    
+                    steps.push({
+                        id: stepNum,
+                        content: content
+                    });
+                    
+                    if (validationCommand) {
+                        validations[stepNum] = validationCommand;
+                    }
+                });
+                
+                const questionData = {
+                    title: questionTitle.value,
+                    description: questionDescription.value,
+                    steps: steps,
+                    validations: validations
+                };
+                
+                fetch(`/api/admin/questions/${currentQuestionId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(questionData)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to save question');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('Question saved successfully!');
+                    loadQuestions(); // Refresh list to update titles
+                })
+                .catch(error => {
+                    console.error('Error saving question:', error);
+                    alert('Error saving question: ' + error.message);
+                });
+            }
+
+            // Delete the current question
+            function deleteQuestion() {
+                if (!currentQuestionId) return;
+                
+                if (!confirm(`Are you sure you want to delete question "${questionTitle.value}"?`)) {
+                    return;
+                }
+                
+                fetch(`/api/admin/questions/${currentQuestionId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to delete question');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('Question deleted successfully');
+                    currentQuestionId = null;
+                    questionForm.style.display = 'none';
+                    noQuestionSelected.style.display = 'block';
+                    loadQuestions(); // Refresh list
+                })
+                .catch(error => {
+                    console.error('Error deleting question:', error);
+                    alert('Error deleting question: ' + error.message);
+                });
+            }
+
+            // Event listeners
+            createQuestionBtn.addEventListener('click', createQuestion);
+            saveQuestionBtn.addEventListener('click', saveQuestion);
+            deleteQuestionBtn.addEventListener('click', deleteQuestion);
+            addStepBtn.addEventListener('click', () => addStep());
+
+            // Initialize
+            loadQuestions();
+        });
+    </script>
+</body>
+</html>

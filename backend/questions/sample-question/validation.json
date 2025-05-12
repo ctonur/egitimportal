@@ -1,0 +1,6 @@
+{
+  "1": "oc get namespace ${NAMESPACE} 2>/dev/null || echo 'Namespace not found'",
+  "2": "oc get configmap app-config -n ${NAMESPACE} 2>/dev/null || echo 'ConfigMap not found'",
+  "3": "oc get configmap app-config -n ${NAMESPACE} -o jsonpath='{.data.environment}' 2>/dev/null | grep -q production && echo 'OK' || echo 'Value not found'",
+  "4": "oc get configmap app-config -n ${NAMESPACE} -o jsonpath='{.data.config\\.json}' 2>/dev/null | grep -q cache && echo 'OK' || echo 'File content not found'"
+}

@@ -1,0 +1,4 @@
+{
+  "title": "Creating a ConfigMap in OpenShift",
+  "description": "Learn how to create and use ConfigMaps to store configuration data in OpenShift."
+}

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenShift CLI Lab Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Updated layout for two-pane view */
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 100px); /* Account for header and footer */
+            padding: 0;
+            max-width: none;
+        }
+        
+        /* Left pane - Questions */
+        .questions-pane {
+            width: 50%;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+        }
+        
+        /* Right pane - Terminal */
+        .terminal-pane {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
+        
+        .terminal-header {
+            padding: 10px;
+            background-color: #333;
+            border-bottom: 1px solid #555;
+        }
+        
+        .terminal-window {
+            flex-grow: 1;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            overflow-y: auto;
+        }
+        
+        .terminal-input {
+            display: flex;
+            padding: 10px;
+            background-color: #1e1e1e;
+            border-top: 1px solid #555;
+        }
+        
+        .terminal-input span {
+            color: #4CAF50;
+            margin-right: 8px;
+        }
+        
+        .terminal-input input {
+            flex-grow: 1;
+            background-color: transparent;
+            border: none;
+            color: #f0f0f0;
+            font-family: 'Courier New', monospace;
+            outline: none;
+        }
+        
+        /* Keep existing styles */
+        .questions-container {
+            margin-bottom: 20px;
+        }
+        .question-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .question-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .question-card h3 {
+            margin-top: 0;
+        }
+        .step-indicator {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #ccc;
+            margin-right: 5px;
+        }
+        .step-dot.active {
+            background-color: #4CAF50;
+        }
+        .step-dot.completed {
+            background-color: #2196F3;
+        }
+        .namespace-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        #checkBtn {
+            background-color: #4CAF50;
+        }
+        #prevStepBtn {
+            background-color: #607d8b;
+        }
+        #nextStepBtn {
+            background-color: #2196F3;
+        }
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #result.success {
+            background-color: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+        }
+        #result.error {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>OpenShift CLI Lab Platform</h1>
+        <!-- Admin panel button is hidden -->
+    </header>
+    
+    <div class="container">
+        <div class="questions-pane">
+            <div id="questions-list-view">
+                <h2>OpenShift Questions</h2>
+                <p>Select a question to start practicing:</p>
+                
+                <div class="questions-container" id="questions-container">
+                    <!-- Questions will be loaded here -->
+                    <p class="loading">Loading questions...</p>
+                </div>
+            </div>
+            
+            <div id="question-view" class="hidden">
+                <div class="back-nav">
+                    <a href="#" id="backToListBtn">&larr; Back to Questions</a>
+                </div>
+                
+                <h2 id="question-title">Question Title</h2>
+                <p id="question-description">Question description</p>
+                
+                <div class="step-indicator" id="step-indicator">
+                    <!-- Step dots will be generated here -->
+                </div>
+                
+                <div class="namespace-section" id="namespace-section">
+                    <h3>Namespace Setup</h3>
+                    <p>First, create a namespace using the terminal with:</p>
+                    <code>oc new-project your-namespace</code>
+                    <p>Then enter the same namespace name here for verification:</p>
+                    <div class="namespace-input">
+                        <input type="text" id="namespace-input" placeholder="Enter namespace name">
+                        <button id="create-namespace-btn">Verify Namespace</button>
+                    </div>
+                    <div id="namespace-status"></div>
+                </div>
+                
+                <div id="step-content">
+                    <!-- Step content will go here -->
+                </div>
+                
+                <div class="actions">
+                    <button id="prevStepBtn" class="btn">Previous Step</button>
+                    <button id="checkBtn" class="btn">Check</button>
+                    <button id="nextStepBtn" class="btn">Next Step</button>
+                </div>
+                
+                <pre id="result" class="hidden"></pre>
+            </div>
+        </div>
+        
+        <div class="terminal-pane">
+            <div class="terminal-header">
+                <h3>Terminal</h3>
+            </div>
+            <div class="terminal-window" id="terminal-output">
+                <!-- Terminal output will be displayed here -->
+                <div>Welcome to the OpenShift CLI Lab Terminal</div>
+                <div>Type commands to interact with your cluster</div>
+                <div>&nbsp;</div>
+            </div>
+            <div class="terminal-input">
+                <span>$</span>
+                <input type="text" id="terminal-command" placeholder="Type your command here...">
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>OpenShift CLI Lab Platform &copy; 2025</p>
+    </footer>
+    
+    <script src="main.js"></script>
+</body>
+</html>

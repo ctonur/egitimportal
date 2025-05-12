@@ -1,0 +1,4 @@
+{
+  "1": "oc get pods",
+  "2": "oc get pod"
+}

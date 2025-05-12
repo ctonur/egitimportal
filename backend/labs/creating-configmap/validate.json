@@ -1,0 +1,7 @@
+{
+  "1": "oc get configmap app-config -n nextapp",
+  "2": "oc describe configmap app-config -n nextapp | grep config.json",
+  "3": "oc get configmap app-config -n nextapp -o yaml | grep -E 'environment|log-level|config.json'",
+  "4": "oc get pod configmap-pod -n nextapp",
+  "5": "oc exec -n nextapp configmap-pod -- ls -la /etc/config | grep -E 'environment|log-level|config.json'"
+}
