@@ -72,10 +72,24 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Append text to terminal output
     function appendToTerminal(text, type = 'output') {
-        const line = document.createElement('div');
-        line.classList.add(type);
-        line.textContent = text;
-        terminalOutput.appendChild(line);
+        if (type === 'output' && text.includes('\n')) {
+            // Handle multi-line output by splitting into separate elements
+            const lines = text.split('\n');
+            for (const line of lines) {
+                if (line.trim() !== '') {  // Skip empty lines
+                    const lineElement = document.createElement('div');
+                    lineElement.classList.add(type);
+                    lineElement.textContent = line;
+                    terminalOutput.appendChild(lineElement);
+                }
+            }
+        } else {
+            // Handle single-line output or special types (command, system, etc.)
+            const line = document.createElement('div');
+            line.classList.add(type);
+            line.textContent = text;
+            terminalOutput.appendChild(line);
+        }
         terminalOutput.scrollTop = terminalOutput.scrollHeight;
     }
     
