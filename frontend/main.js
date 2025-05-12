@@ -279,8 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update step indicator
         updateStepIndicator();
         
-        // Display step content
-        stepContent.innerHTML = step.content || 'No content for this step';
+        // Display step content with Markdown parsing
+        stepContent.innerHTML = parseMarkdown(step.content || 'No content for this step');
         
         // Add syntax highlighting and copy buttons to code blocks
         highlightCodeBlocks();
@@ -293,6 +293,35 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Clear result display
         clearResultDisplay();
+    }
+    
+    // Parse Markdown to HTML
+    function parseMarkdown(markdown) {
+        // Basic Markdown parsing for the most common elements
+        return markdown
+            // Headers
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            // Bold
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            // Italic
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            // Line breaks
+            .replace(/\n/g, '<br />')
+            // Code blocks
+            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+            // Inline code
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            // Lists
+            .replace(/^\s*\*\s(.*$)/gm, '<li>$1</li>')
+            .replace(/(<li>.*<\/li>)\s+(?=<li>)/g, '$1</ul><ul>')
+            .replace(/(^<li>)/m, '<ul>$1')
+            .replace(/(<\/li>)$/m, '$1</ul>')
+            // Fix double line breaks (since we replaced all \n with <br>)
+            .replace(/<br \/><br \/>/g, '<br /><br />')
+            // Ensure correct list handling
+            .replace(/<br \/><ul>/g, '<ul>');
     }
     
     // Update the step indicator dots
